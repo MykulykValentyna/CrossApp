@@ -7,3 +7,6 @@ dotnet build
 dotnet run --project src/Cli 
 ## Середовище 
 .NET SDK 9.0, Windows 11 Pro x64
+## Додаткове завдання
+Розмір збірки для win-x64: 148 мб 
+Розмір збірки для linux-x64: 151 мб
