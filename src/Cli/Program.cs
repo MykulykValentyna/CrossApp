@@ -14,7 +14,8 @@ var info = new
 
 if (args.Contains("--json"))
 {
-    string jsonString = JsonSerializer.Serialize(info);
+    var options = new JsonSerializerOptions { WriteIndented = true };
+    string jsonString = JsonSerializer.Serialize(info, options);
     Console.WriteLine(jsonString);
 }
 else
