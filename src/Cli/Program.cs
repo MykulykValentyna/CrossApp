@@ -1,35 +1,13 @@
-﻿using System.Runtime.InteropServices;
-using System.Text.Json;
+﻿using Core; 
 
-var info = new
-{
-    OSDescription = RuntimeInformation.OSDescription,
-    OSEnvironment = Environment.OSVersion.ToString(),
-    ProcessArchitecture = RuntimeInformation.ProcessArchitecture.ToString(),
-    NetVersion = Environment.Version.ToString(),
-    Runtime = RuntimeInformation.FrameworkDescription,
-    BaseDirectory = AppContext.BaseDirectory,
-    CurrentDirectory = Environment.CurrentDirectory
-};
+EnvironmentReport report = EnvironmentInfo.Collect(); 
 
-if (args.Contains("--json"))
-{
-    var options = new JsonSerializerOptions { WriteIndented = true };
-    string jsonString = JsonSerializer.Serialize(info, options);
-    Console.WriteLine(jsonString);
-}
-else
-{
-    Console.WriteLine("CrossApp – практикум з крос-платформного програмування"); 
-    Console.WriteLine("Студент: Микулик Валентина, група ФЕІ-22с"); 
-    Console.WriteLine(new string('-', 52)); 
-    Console.WriteLine($"ОС (OSDescription)   : {info.OSDescription}"); 
-    Console.WriteLine($"ОС (Environment)     : {info.OSEnvironment}"); 
-    Console.WriteLine($"Архітектура процесу  : {info.ProcessArchitecture}"); 
-    Console.WriteLine($"Версія .NET (CLR)    : {info.NetVersion}"); 
-    Console.WriteLine($"Runtime              : {info.Runtime}"); 
-    Console.WriteLine($"Каталог застосунку   : {info.BaseDirectory}"); 
-    Console.WriteLine($"Поточний каталог     : {info.CurrentDirectory}"); 
-    Console.WriteLine(new string('-', 52)); 
-    Console.WriteLine("Предметна область: Бібліотека (Book, BookCopy, Reader, Loan)");
-}
+Console.WriteLine("CrossApp – інформація про середовище"); 
+Console.WriteLine(new string('-', 52)); 
+Console.WriteLine($"ОС             : {report.OsDescription}"); 
+Console.WriteLine($"Runtime        : {report.FrameworkDescription}"); 
+Console.WriteLine($"Архітектура    : {report.ProcessArchitecture}"); 
+Console.WriteLine($"RID (визначено): {report.DetectedRid}"); 
+Console.WriteLine($"RID (від .NET) : {report.ReportedRid}"); 
+Console.WriteLine($"Каталог        : {report.BaseDirectory}");
+Console.WriteLine($"Особливість    : {report.BuildNote}");
