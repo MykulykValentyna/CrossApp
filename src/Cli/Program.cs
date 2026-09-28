@@ -1,13 +1,58 @@
-﻿using Core; 
+﻿using Core.Dto;
+using Core.Import;
 
-EnvironmentReport report = EnvironmentInfo.Collect(); 
+string path = args.Length > 0 ? args[0] : Path.Combine("data", "sample.csv");
 
-Console.WriteLine("CrossApp – інформація про середовище"); 
-Console.WriteLine(new string('-', 52)); 
-Console.WriteLine($"ОС             : {report.OsDescription}"); 
-Console.WriteLine($"Runtime        : {report.FrameworkDescription}"); 
-Console.WriteLine($"Архітектура    : {report.ProcessArchitecture}"); 
-Console.WriteLine($"RID (визначено): {report.DetectedRid}"); 
-Console.WriteLine($"RID (від .NET) : {report.ReportedRid}"); 
-Console.WriteLine($"Каталог        : {report.BaseDirectory}");
-Console.WriteLine($"Особливість    : {report.BuildNote}");
+if (!File.Exists(path))
+{
+    Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
+    return 1;
+}
+
+// 1. Вибір імпортера за розширенням або специфікою файлу через switch expression
+ImportResult<IDomainRecord> result = Path.GetFileName(path).ToLowerInvariant() switch
+{
+    "mixed.csv" => MixedCsvImporter.Load(path),
+    _ => Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".csv" => AdaptResult(ProductCsvImporter.Load(path)),
+        ".json" => AdaptResult(ProductJsonImporter.Load(path)),
+        var ext => throw new NotSupportedException($"Розширення '{ext}' не підтримується")
+    }
+};
+
+// Виведення даних із розпізнаванням конкретного типу запису
+Console.WriteLine($"Завантажено записів: {result.Items.Count}");
+foreach (IDomainRecord item in result.Items.Take(5))
+{
+    string display = item switch
+    {
+        ProductDto p => $"  [Товар] {p.Id,-6} {p.Sku,-10} {p.Name,-24} {p.Quantity,5} {p.Unit}",
+        WarehouseDto w => $"  [Склад] {w.Id,-6} {w.Name,-35} {w.Location}",
+        _ => $"  [Невідомо] {item}"
+    };
+    Console.WriteLine(display);
+}
+
+// Повідомлення про помилки
+if (result.Errors.Count > 0)
+{
+    Console.WriteLine($"Пропущено рядків: {result.Errors.Count}");
+    foreach (string e in result.Errors)
+    {
+        Console.WriteLine($"  ! {e}");
+    }
+}
+
+// 3. Статистика імпорту одним рядком
+int total = result.Items.Count + result.Errors.Count;
+double errorPercent = total > 0 ? (double)result.Errors.Count / total * 100 : 0.0;
+
+Console.WriteLine("----------------------------------------------------------------------");
+Console.WriteLine($"Статистика: Усього: {total} | Прийнято: {result.Items.Count} | Пропущено: {result.Errors.Count} | Помилок: {errorPercent:F1}%");
+
+return 0;
+
+// Допоміжний метод приведення типізованого результату до загального інтерфейсу
+static ImportResult<IDomainRecord> AdaptResult(ImportResult<ProductDto> res) =>
+    new(res.Items.Cast<IDomainRecord>().ToList(), res.Errors);
