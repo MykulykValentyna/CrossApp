@@ -1,38 +1,74 @@
 # CrossApp 
-Наскрізний проєкт з крос-платформного програмування. 
-Предметна область: Бібліотека. Сутності: Book, BookCopy, Reader, Loan. 
-Призначення: облік видач примірників книг читачам. 
-## Структура solution
-CrossApp/ 
-CrossApp.sln 
-README.md 
-.gitignore 
-src/ 
-  Core/ 
-    Core.csproj 
-    EnvironmentInfo.cs 
-    EnvironmentReport.cs        
-  Cli/ 
-    Cli.csproj                  
-    Program.cs
-## Домовленість про каталоги в Core на весь семестр
-Core/Dto/     – record-типи формату даних (тиждень 3): ProductDto / BookDto / OrderDto 
-Core/Domain/  – сутності з поведінкою та інваріантами (тиждень 4) 
-Core/Storage/ – реалізації сховищ (тиждень 5) 
-## Команди
-Збірка:
+Наскрізний проєкт з дисципліни «Крос-платформне програмування»[cite: 1].  
+Предметна область: Складський облік товарів[cite: 1].  
+Основні моделі: `ProductDto`, `WarehouseDto`[cite: 1].  
+Призначення: парсинг, імпорт та облік складських залишків із зовнішніх файлів[cite: 1].
+## Структура проєкту
+```text
+CrossApp/
+├── data/
+│   ├── sample.csv          # Вхідні дані (10 валідних + 3 тестові помилкові рядки)
+│   ├── valid.csv           # Повністю коректний тестовий набір даних
+│   ├── mixed.csv           # Різнорідні дані з префіксами типу (P - товари, W - склади)
+│   └── sample.json         # Тестові дані у форматі JSON
+├── src/
+│   ├── Core/
+│   │   ├── Core.csproj
+│   │   ├── EnvironmentInfo.cs
+│   │   ├── EnvironmentReport.cs
+│   │   ├── Dto/
+│   │   │   ├── IDomainRecord.cs
+│   │   │   ├── ProductDto.cs
+│   │   │   ├── WarehouseDto.cs
+│   │   │   └── ImportResult.cs
+│   │   └── Import/
+│   │       ├── ProductCsvImporter.cs
+│   │       ├── ProductJsonImporter.cs
+│   │       └── MixedCsvImporter.cs
+│   └── Cli/
+│       ├── Cli.csproj
+│       └── Program.cs
+├── CrossApp.sln
+├── README.md
+└── .gitignore
 ```
+## Домовленість про каталоги в Core
+* `Core/Dto/` — незмінні `record`-типи передачі та зберігання даних (тиждень 3)[cite: 1].
+* `Core/Import/` — класи розбору вхідних файлів та валідації (тиждень 3)[cite: 1].
+* `Core/Domain/` — сутності з інваріантами та бізнес-поведінкою (тиждень 4)[cite: 1].
+* `Core/Storage/` — реалізації файлових сховищ `FileCatalogStore` (тиждень 5)[cite: 1].
+## Формат вхідних даних
+### CSV-файли (`sample.csv`, `valid.csv`)
+* **Кодування:** `UTF-8`[cite: 1].
+* **Роздільник полів:** `;` (крапка з комою) для уникнення колізій із комами в назвах[cite: 1].
+* **Заголовок:** перший рядок містить назви колонок (`id;sku;name;unit;quantity`), ігнорується парсером за префіксом `id`[cite: 1].
+* **Коментарі та пропуски:** рядки, що починаються з `#`, або порожні рядки автоматично відкидаються[cite: 1].
+* **Числа:** цілі числа розбираються із явною фіксацією `CultureInfo.InvariantCulture`[cite: 1].
+### Різнорідний CSV (`mixed.csv`)
+* Перша колонка задає префікс типу: `P` для товару (`ProductDto`), `W` для складу (`WarehouseDto`)[cite: 1].
+### JSON-імпорт (`sample.json`)
+* Підтримує десеріалізацію списку `List<ProductDto>` за допомогою `System.Text.Json` з ігноруванням регістру ключів[cite: 1].
+## Команди
+### Збірка рішення
+```bash
 dotnet build
 ```
-Запуск:
-```
+### Запуск CLI
+```bash
 dotnet run --project src/Cli
+dotnet run --project src/Cli -- data/valid.csv
+dotnet run --project src/Cli -- data/mixed.csv
+dotnet run --project src/Cli -- data/sample.json
+dotnet run --project src/Cli -- nonexistent.csv
 ```
-Публікація:
-```
+### Публікація
+```bash
 dotnet publish src/Cli -c Release -r win-x64 --self-contained true
 dotnet publish src/Cli -c Release -r win-x64 --self-contained false
 ```
+## Середовище розробки
+* **.NET SDK:** 10.0 (сумісний із .NET 8.0)
+* **ОС:** Windows 11 Pro x64
 ## Середовище 
 .NET SDK 10.0, Windows 11 Pro x64
 ## Розміри публікації
@@ -40,4 +76,4 @@ dotnet publish src/Cli -c Release -r win-x64 --self-contained false
 |-----------|---------------------|----------------|------------------|
 | win-x64   | self-contained      | ~76.7 МБ       | ні               |
 | win-x64   | framework-dependent | ~0.2 МБ        | так (.NET 10)    |
-| linux-x64 | self-contained      | ~78.8 МБ        | ні               |
+| linux-x64 | self-contained      | ~78.8 МБ       | ні               |
