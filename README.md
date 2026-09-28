@@ -40,4 +40,4 @@ dotnet publish src/Cli -c Release -r win-x64 --self-contained false
 |-----------|---------------------|----------------|------------------|
 | win-x64   | self-contained      | ~76.7 МБ       | ні               |
 | win-x64   | framework-dependent | ~0.2 МБ        | так (.NET 10)    |
-| linux-x64 | self-contained      | ~78.8 МБ        | ні               |
+| linux-x64 | self-contained      | ~78.8 МБ       | ні               |
