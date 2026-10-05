@@ -77,3 +77,8 @@ dotnet publish src/Cli -c Release -r win-x64 --self-contained false
 | win-x64   | self-contained      | ~76.7 МБ       | ні               |
 | win-x64   | framework-dependent | ~0.2 МБ        | так (.NET 10)    |
 | linux-x64 | self-contained      | ~78.8 МБ       | ні               |
+### Інваріанти доменної моделі (Лабораторна робота 4)
+1. **ISBN не порожній**: Перевіряється у фабричному методі `BookCopy.Create`. Кидає `ArgumentException`.
+2. **Не видати вже виданий примірник**: Перевіряється у методі `BookCopy.Issue()`. Кидає `InvalidOperationException`.
+3. **Дата повернення не раніше дати видачі**: Перевіряється у методі `Loan.Close()`. Кидає `ArgumentOutOfRangeException`.
+4. **Не закрити закриту видачу**: Перевіряється у методі `Loan.Close()`. Кидає `InvalidOperationException`.

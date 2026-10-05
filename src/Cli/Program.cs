@@ -1,58 +1,99 @@
-﻿using Core.Dto;
-using Core.Import;
+﻿using Core.Domain;
+using Core.Dto;
+using System;
+using System.Collections.Generic;
 
-string path = args.Length > 0 ? args[0] : Path.Combine("data", "sample.csv");
+Console.WriteLine("=== Сценарій 1: успіх ===");
+BookCopy copy = BookCopy.Create("COPY-123", "978-3-16-148410-0");
+Console.WriteLine(copy);
 
-if (!File.Exists(path))
+DateTime issueDate = DateTime.Now.AddDays(-5);
+Loan loan = Loan.Open(copy, "READER-001", issueDate, 0); 
+Console.WriteLine($"[Успіх] Книгу видано. Стан примірника: {copy}");
+
+loan.Close(DateTime.Now, copy);
+Console.WriteLine($"[Успіх] Книгу повернуто. Стан примірника: {copy}");
+Console.WriteLine();
+
+
+Console.WriteLine("=== Сценарій 2: порушення інваріантів ===");
+BookCopy brokenCopy = BookCopy.Create("COPY-999", "978-0-12-345678-9");
+
+TryDo("Порожній ISBN при створенні", () => BookCopy.Create("COPY-002", "   "));
+
+TryDo("Повторна видача вже виданого примірника", () => 
 {
-    Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
-    return 1;
+    Loan.Open(brokenCopy, "READER-002", DateTime.Now, 0);
+    brokenCopy.Issue();
+});
+
+TryDo("Дата повернення раніше дати видачі", () => 
+{
+    BookCopy tempCopy = BookCopy.Create("COPY-003", "978-1-23-456789-0");
+    Loan tempLoan = Loan.Open(tempCopy, "READER-003", DateTime.Now, 0);
+    tempLoan.Close(DateTime.Now.AddDays(-1), tempCopy); 
+});
+
+TryDo("Спроба закрити вже закриту видачу", () => 
+{
+    BookCopy tempCopy = BookCopy.Create("COPY-004", "111-2-33-456789-0");
+    Loan tempLoan = Loan.Open(tempCopy, "READER-004", DateTime.Now.AddDays(-2), 0);
+    tempLoan.Close(DateTime.Now, tempCopy);
+    tempLoan.Close(DateTime.Now, tempCopy);
+});
+
+static void TryDo(string title, Action action)
+{
+    try
+    {
+        action();
+        Console.WriteLine($"  {title}: виняток НЕ спрацював — інваріант відсутній!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"  {title}: {ex.GetType().Name} — {ex.Message}");
+    }
 }
 
-// 1. Вибір імпортера за розширенням або специфікою файлу через switch expression
-ImportResult<IDomainRecord> result = Path.GetFileName(path).ToLowerInvariant() switch
+Console.WriteLine("\n=== ДОДАТКОВІ ЗАВДАННЯ ===");
+
+Console.WriteLine("--- 1. Імпорт з помилками ---");
+var mockDtos = new List<BookCopyDto>
 {
-    "mixed.csv" => MixedCsvImporter.Load(path),
-    _ => Path.GetExtension(path).ToLowerInvariant() switch
-    {
-        ".csv" => AdaptResult(ProductCsvImporter.Load(path)),
-        ".json" => AdaptResult(ProductJsonImporter.Load(path)),
-        var ext => throw new NotSupportedException($"Розширення '{ext}' не підтримується")
-    }
+    new BookCopyDto("C-01", "123-456", false), 
+    new BookCopyDto("C-02", " ", false)       
 };
 
-// Виведення даних із розпізнаванням конкретного типу запису
-Console.WriteLine($"Завантажено записів: {result.Items.Count}");
-foreach (IDomainRecord item in result.Items.Take(5))
+var importResult = Core.Import.EntityMapper.MapBookCopies(mockDtos);
+Console.WriteLine($"Успішно відновлено сутностей: {importResult.Entities.Count}");
+Console.WriteLine($"Кількість помилок інваріантів: {importResult.Errors.Count}");
+Console.WriteLine($"Текст помилки: {importResult.Errors[0]}");
+
+Console.WriteLine("\n--- 2. Інваріант на дві сутності (Ліміт) ---");
+var freshCopy = BookCopy.Create("C-03", "999-999");
+try
 {
-    string display = item switch
-    {
-        ProductDto p => $"  [Товар] {p.Id,-6} {p.Sku,-10} {p.Name,-24} {p.Quantity,5} {p.Unit}",
-        WarehouseDto w => $"  [Склад] {w.Id,-6} {w.Name,-35} {w.Location}",
-        _ => $"  [Невідомо] {item}"
-    };
-    Console.WriteLine(display);
+    Console.WriteLine("Спроба видати книгу читачу, у якого вже 5 видач...");
+    Loan.Open(freshCopy, "READER-OVERLOAD", DateTime.Now, activeLoansCount: 5); 
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"УСПІХ! Виняток: {ex.Message}");
 }
 
-// Повідомлення про помилки
-if (result.Errors.Count > 0)
+Console.WriteLine("\n--- 3. Явний стан-перелічування ---");
+Order myOrder = Order.Create("ORD-555");
+Console.WriteLine($"Поточний стан: {myOrder.Status}");
+
+myOrder.ChangeStatus(OrderStatus.Confirmed);
+Console.WriteLine($"Після підтвердження: {myOrder.Status}");
+
+try
 {
-    Console.WriteLine($"Пропущено рядків: {result.Errors.Count}");
-    foreach (string e in result.Errors)
-    {
-        Console.WriteLine($"  ! {e}");
-    }
+    Console.WriteLine("Спроба скасувати підтверджене замовлення...");
+    myOrder.ChangeStatus(OrderStatus.Cancelled);
 }
-
-// 3. Статистика імпорту одним рядком
-int total = result.Items.Count + result.Errors.Count;
-double errorPercent = total > 0 ? (double)result.Errors.Count / total * 100 : 0.0;
-
-Console.WriteLine("----------------------------------------------------------------------");
-Console.WriteLine($"Статистика: Усього: {total} | Прийнято: {result.Items.Count} | Пропущено: {result.Errors.Count} | Помилок: {errorPercent:F1}%");
-
-return 0;
-
-// Допоміжний метод приведення типізованого результату до загального інтерфейсу
-static ImportResult<IDomainRecord> AdaptResult(ImportResult<ProductDto> res) =>
-    new(res.Items.Cast<IDomainRecord>().ToList(), res.Errors);
+catch (Exception ex)
+{
+    Console.WriteLine($"УСПІХ! Виняток машини станів: {ex.Message}");
+}
