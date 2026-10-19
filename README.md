@@ -10,24 +10,38 @@ CrossApp/
 │   ├── sample.csv          # Вхідні дані (10 валідних + 3 тестові помилкові рядки)
 │   ├── valid.csv           # Повністю коректний тестовий набір даних
 │   ├── mixed.csv           # Різнорідні дані з префіксами типу (P - товари, W - склади)
-│   └── sample.json         # Тестові дані у форматі JSON
+│   ├── sample.json         # Тестові дані у форматі JSON
+│   └── catalog.json        # Згенеровані дані бібліотеки (з'являється при запуску з --file)
 ├── src/
 │   ├── Core/
 │   │   ├── Core.csproj
 │   │   ├── EnvironmentInfo.cs
-│   │   ├── EnvironmentReport.cs
+│   │   ├── Abstractions/
+│   │   │   └── IBookStore.cs           # Контракт для сховища примірників
+│   │   ├── Domain/
+│   │   │   ├── BookCopy.cs             # Доменна сутність примірника книги
+│   │   │   ├── DomainImportResult.cs
+│   │   │   ├── Loan.cs                 # Доменна сутність видачі книги
+│   │   │   └── Order.cs
 │   │   ├── Dto/
-│   │   │   ├── IDomainRecord.cs
+│   │   │   ├── BookCopyDto.cs
+│   │   │   ├── ImportResult.cs
+│   │   │   ├── LoanDto.cs
 │   │   │   ├── ProductDto.cs
-│   │   │   ├── WarehouseDto.cs
-│   │   │   └── ImportResult.cs
-│   │   └── Import/
-│   │       ├── ProductCsvImporter.cs
-│   │       ├── ProductJsonImporter.cs
-│   │       └── MixedCsvImporter.cs
+│   │   │   └── WarehouseDto.cs
+│   │   ├── Import/
+│   │   │   ├── EntityMapper.cs
+│   │   │   ├── MixedCsvImporter.cs
+│   │   │   ├── ProductCsvImporter.cs
+│   │   │   └── ProductJsonImporter.cs
+│   │   ├── Services/
+│   │   │   └── LendingService.cs       # Сервісний шар (бізнес-логіка бібліотеки)
+│   │   └── Storage/
+│   │       ├── FileBookStore.cs        # Файлова реалізація сховища
+│   │       └── InMemoryBookStore.cs    # Реалізація сховища в оперативній пам'яті
 │   └── Cli/
 │       ├── Cli.csproj
-│       └── Program.cs
+│       └── Program.cs                  # Composition Root та точка входу
 ├── CrossApp.sln
 ├── README.md
 └── .gitignore
@@ -82,3 +96,7 @@ dotnet publish src/Cli -c Release -r win-x64 --self-contained false
 2. **Не видати вже виданий примірник**: Перевіряється у методі `BookCopy.Issue()`. Кидає `InvalidOperationException`.
 3. **Дата повернення не раніше дати видачі**: Перевіряється у методі `Loan.Close()`. Кидає `ArgumentOutOfRangeException`.
 4. **Не закрити закриту видачу**: Перевіряється у методі `Loan.Close()`. Кидає `InvalidOperationException`.
+## Архітектурні рішення (Лабораторна робота 5)
+1. **Dependency Inversion:** `LendingService` залежить виключно від абстракції `IBookStore`, а не від конкретних реалізацій сховищ (`InMemory` чи `File`).
+2. **Composition Root:** Єдине місце, де використовуються оператори `new` для створення конкретних сховищ — це точка входу застосунку `Program.cs`. Це дозволяє легко замінити файлове сховище на базу даних у майбутньому без зміни коду сервісу.
+3. **Мапінг DTO:** У файловому сховищі на диск серіалізуються `BookCopyDto`, оскільки доменні сутності `BookCopy` мають приватні сетери і не призначені для прямої серіалізації.
