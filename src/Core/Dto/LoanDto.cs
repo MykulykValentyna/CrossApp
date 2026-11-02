@@ -1,3 +1,9 @@
 namespace Core.Dto;
 
-public record LoanDto(string Id, string CopyId, string ReaderId, DateTime IssuedOn, DateTime? ReturnedOn);
+public record LoanDto(
+    string Id,
+    string CopyId,
+    string ReaderId,
+    DateTime IssuedOn,
+    DateTime? ReturnedOn,
+    DateTime? DueDate = null);

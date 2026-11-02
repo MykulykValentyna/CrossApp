@@ -6,32 +6,51 @@ public sealed class Loan
 {
     public string Id { get; }
     public string CopyId { get; }
+    public string BookId => CopyId;
     public string ReaderId { get; }
     public DateTime IssuedOn { get; }
+    public DateTime DueDate { get; }
     public DateTime? ReturnedOn { get; private set; }
 
     public bool IsClosed => ReturnedOn.HasValue;
 
-    private Loan(string id, string copyId, string readerId, DateTime issuedOn, DateTime? returnedOn)
+    private Loan(
+        string id,
+        string copyId,
+        string readerId,
+        DateTime issuedOn,
+        DateTime dueDate,
+        DateTime? returnedOn)
     {
         Id = id;
         CopyId = copyId;
         ReaderId = readerId;
         IssuedOn = issuedOn;
+        DueDate = dueDate;
         ReturnedOn = returnedOn;
     }
 
     public static Loan Open(BookCopy copy, string readerId, DateTime issuedOn, int activeLoansCount)
+        => Open(copy, readerId, issuedOn, issuedOn.AddDays(14), activeLoansCount);
+
+    public static Loan Open(
+        BookCopy copy,
+        string readerId,
+        DateTime issuedOn,
+        DateTime dueDate,
+        int activeLoansCount)
     {
         if (copy == null) throw new ArgumentNullException(nameof(copy));
         if (string.IsNullOrWhiteSpace(readerId)) throw new ArgumentException("ID читача обов'язковий", nameof(readerId));
+        if (dueDate < issuedOn)
+            throw new ArgumentOutOfRangeException(nameof(dueDate), "Термін повернення не може бути раніше дати видачі.");
 
         if (activeLoansCount >= 5)
             throw new InvalidOperationException($"Читач {readerId} вже має {activeLoansCount} відкритих видач. Ліміт: 5.");
 
-        copy.Issue(); 
+        copy.Issue();
 
-        return new Loan(Guid.NewGuid().ToString(), copy.Id, readerId, issuedOn, null);
+        return new Loan(Guid.NewGuid().ToString(), copy.Id, readerId, issuedOn, dueDate, null);
     }
 
     public void Close(DateTime returnedOn, BookCopy copy)
@@ -47,8 +66,15 @@ public sealed class Loan
         copy.Return();
     }
 
-    public LoanDto ToDto() => new(Id, CopyId, ReaderId, IssuedOn, ReturnedOn);
+    public LoanDto ToDto() => new(Id, CopyId, ReaderId, IssuedOn, ReturnedOn, DueDate);
 
-    public static Loan FromDto(LoanDto dto) => 
-        new Loan(dto.Id, dto.CopyId, dto.ReaderId, dto.IssuedOn, dto.ReturnedOn);
+    public static Loan FromDto(LoanDto dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+        DateTime dueDate = dto.DueDate ?? dto.IssuedOn.AddDays(14);
+        if (dueDate < dto.IssuedOn)
+            throw new ArgumentException("Термін повернення не може бути раніше дати видачі.", nameof(dto));
+
+        return new Loan(dto.Id, dto.CopyId, dto.ReaderId, dto.IssuedOn, dueDate, dto.ReturnedOn);
+    }
 }

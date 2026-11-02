@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Core.Abstractions;
+using Core;
 using Core.Storage;
 
 public static class StoreFactory
@@ -15,9 +16,22 @@ public static class StoreFactory
         
         string dataPath = Path.Combine(AppContext.BaseDirectory, "data", "catalog.json");
         
-        IBookStore store = useFile 
-            ? new FileBookStore(dataPath) 
-            : new InMemoryBookStore();
+        IBookStore store;
+        if (useFile)
+        {
+            var fileStore = new FileBookStore(dataPath);
+            if (!File.Exists(dataPath))
+            {
+                foreach (var book in SampleData.Books)
+                    fileStore.Add(book);
+            }
+
+            store = fileStore;
+        }
+        else
+        {
+            store = new InMemoryBookStore(SampleData.Books);
+        }
             
         if (useCache)
         {
